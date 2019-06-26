@@ -37,13 +37,13 @@ defmodule Download do
 
     with  { :ok, file } <- create_file(path),
           { :ok, response_parsing_pid } <- create_process(file, max_file_size, path),
-          { :ok, _pid } <- start_download(url, response_parsing_pid, path),
+          { :ok, _pid } <- start_download(url, response_parsing_pid, path, Keyword.get(opts, :http_opts, [])),
           { :ok } <- wait_for_download(),
         do: { :ok, path }
   end
 
   defp get_default_download_path(file_name) do
-    System.cwd() <> "/" <> file_name
+    File.cwd!() <> "/" <> file_name
   end
 
   defp create_file(path), do: File.open(path, [:write, :exclusive])
@@ -58,8 +58,8 @@ defmodule Download do
     { :ok, spawn_link(__MODULE__, :do_download, [opts]) }
   end
 
-  defp start_download(url, response_parsing_pid, path) do
-    request = HTTPoison.get url, %{}, stream_to: response_parsing_pid
+  defp start_download(url, response_parsing_pid, path, http_opts) do
+    request = HTTPoison.get url, %{}, [{:stream_to, response_parsing_pid} | http_opts]
 
     case request do
       { :error, _reason } ->
